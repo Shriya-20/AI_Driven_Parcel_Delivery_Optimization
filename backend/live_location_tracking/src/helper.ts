@@ -29,7 +29,7 @@
 import axios from "axios"; // Use default axios import
 
 const axiosInstance = axios.create({
-  baseURL: process.env.MAIN_SERVER_BASE_URL,
+  baseURL: process.env.MAIN_SERVER_BASE_URL || "http://localhost:8000", // Fallback to localhost if not set
   headers: {
     "Content-Type": "application/json",
   },
@@ -37,13 +37,13 @@ const axiosInstance = axios.create({
 });
 
 export async function updateDriverLocation(
-  driverId: string,
+  driver_id: string,
   latitude: number,
   longitude: number
 ) {
   try {
     const body = {
-      driverId,
+      driver_id,
       latitude,
       longitude,
       timestamp: new Date().toISOString(),
@@ -52,14 +52,14 @@ export async function updateDriverLocation(
     console.log("Updating driver location:", body);
 
     const response = await axiosInstance.post(
-      `/api/drivers/${driverId}/location`,
+      `/api/drivers/${driver_id}/location`,
       body
     );
 
     if (response.status === 200) {
       console.log("Successfully updated driver location:", response.data);
       return {
-        driverId,
+        driver_id,
         latitude,
         longitude,
         timestamp: body.timestamp,
@@ -73,14 +73,14 @@ export async function updateDriverLocation(
   } catch (error) {
     console.error(
       "Error updating driver location for driver ID:",
-      driverId,
+      driver_id,
       error
     );
 
     // Return a fallback object so the frontend can still update with cached data
     // You might want to return null if you prefer to skip the update entirely
     return {
-      driverId,
+      driver_id,
       latitude,
       longitude,
       timestamp: new Date().toISOString(),
