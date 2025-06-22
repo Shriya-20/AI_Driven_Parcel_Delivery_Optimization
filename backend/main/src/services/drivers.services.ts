@@ -422,28 +422,201 @@ export async function updateDriverLocationService(driver_id:string, location: {
     return updatedLocation;
 }
 
-export async function deliveryStatusChangeService(driver_id: string, delivery_id: string, status: DeliveryStatus) {
+// export async function deliveryStatusChangeService(driver_id: string, delivery_id: string, status: DeliveryStatus) {
+//   const updatedDeliveryQueue = await prisma.deliveryQueue.update({
+//     where: {
+//       idx_delivery_queue_driver_delivery_id: {
+//         driver_id: driver_id,
+//         delivery_id: delivery_id,
+//       },//to say that we are looking for a specific delivery for the driver in the queue
+//     },
+//     data: {
+//       status: status,
+//     },
+//     select: {
+//       driver_id: true,
+//       delivery_id: true,
+//       status: true,
+//       delivery: true,
+//       date: true,
+//     }
+//   });
+//   if (status === "completed" || status === "cancelled") {
+//     //if status is completed then we need to put it in the order history
+//     const customer_id = updatedDeliveryQueue.delivery.customer_id;
+//     const time_slot = updatedDeliveryQueue.delivery.time_slot_id;
+//     if(!customer_id || !time_slot){
+//       throw new Error("Customer ID or Time Slot ID not found in delivery details");
+//     }
+//     const time_slot_details = await prisma.timeSlot.findUnique({
+//       where: {
+//         time_slot_id: time_slot,
+//       },
+//       select: {
+//         start_time: true,
+//         end_time: true,
+//       }
+//     });
+//     if (!time_slot_details) {
+//         throw new Error("Time slot not found");
+//       }
+//     const customer = await prisma.customer.findUnique({
+//       where: {
+//         customer_id: customer_id,
+//       },});
+//     if (!customer) {
+//       throw new Error("Customer not found");
+//     }
+//     if (status === "completed") {
+//       //if completed then we need to add it to the order history
+//       const currentTime = new Date().getTime();
+//       const startTime = new Date(time_slot_details.start_time).getTime();
+//       const endTime = new Date(time_slot_details.end_time).getTime();
+//       let OrderStatus = "on_time";
+//       //check if the delivery is completed within the time slot
+//       if (currentTime < startTime) {
+//         OrderStatus = "early";
+//       }else if (currentTime > endTime) {
+//         OrderStatus = "late";
+//       }
+//       await prisma.orderHistory.create({
+//         data: {
+//           delivery_id: updatedDeliveryQueue.delivery_id,
+//           customer_id: customer_id,
+//           driver_id: driver_id,
+//           completed_at: new Date(),
+//           date: updatedDeliveryQueue.date,
+//           status: OrderStatus as "on_time" | "early" | "late" | "not_delivered",
+//         },
+//       });
+//     }else if (status === "cancelled") {
+//       await prisma.orderHistory.create({
+//         data: {
+//           delivery_id: updatedDeliveryQueue.delivery_id,
+//           customer_id: customer_id,
+//           driver_id: driver_id,
+//           completed_at: new Date(),
+//           date: updatedDeliveryQueue.date,
+//           status: "not_delivered" as "on_time" | "early" | "late" | "not_delivered",
+//         },
+//       });
+//     }
+//            //current time
+
+//     //TODO-> once it is completed we shd get the time also for that delivery compare with the current time and make the orderstatus as such and get the customer info and then store it in the order history
+//   }
+//   return updatedDeliveryQueue;
+//   //would be ok on returning just this as in dashboard the delivery queue will be picked properly anyway so it will be fine
+// }
+export async function deliveryStatusChangeService(
+  driver_id: string,
+  delivery_id: string,
+  status: DeliveryStatus
+) {
+  // Update delivery status in queue
   const updatedDeliveryQueue = await prisma.deliveryQueue.update({
     where: {
       idx_delivery_queue_driver_delivery_id: {
-        driver_id: driver_id,
-        delivery_id: delivery_id,
-      },//to say that we are looking for a specific delivery for the driver in the queue
+        driver_id,
+        delivery_id,
+      },
     },
     data: {
-      status: status,
+      status,
     },
     select: {
       driver_id: true,
       delivery_id: true,
       status: true,
-    }
+      date: true,
+      delivery: {
+        select: {
+          customer_id: true,
+          time_slot_id: true,
+        },
+      },
+    },
   });
-  if (status === "completed" || status === "cancelled") {
-    //if status is completed then we need to put it in the order history
 
-    //TODO-> once it is completed we shd get the time also for that delivery compare with the current time and make the orderstatus as such and get the customer info and then store it in the order history
+  // Handle completion or cancellation
+  if (status === "completed" || status === "cancelled") {
+    await createOrderHistory(updatedDeliveryQueue, driver_id, status);
   }
+
   return updatedDeliveryQueue;
-  //would be ok on returning just this as in dashboard the delivery queue will be picked properly anyway so it will be fine
+}
+
+async function createOrderHistory(
+  deliveryQueue: any,
+  driver_id: string,
+  status: "completed" | "cancelled"
+) {
+  const { delivery_id, date, delivery } = deliveryQueue;
+  const { customer_id, time_slot_id } = delivery;
+
+  // Validate required fields
+  if (!customer_id || !time_slot_id) {
+    throw new Error(
+      "Customer ID or Time Slot ID not found in delivery details"
+    );
+  }
+
+  // Fetch customer and time slot details in parallel
+  const [customer, timeSlotDetails] = await Promise.all([
+    prisma.customer.findUnique({
+      where: { customer_id },
+      select: { customer_id: true }, // Only select what we need
+    }),
+    prisma.timeSlot.findUnique({
+      where: { time_slot_id },
+      select: {
+        start_time: true,
+        end_time: true,
+      },
+    }),
+  ]);
+
+  // Validate fetched data
+  if (!customer) {
+    throw new Error("Customer not found");
+  }
+
+  if (!timeSlotDetails) {
+    throw new Error("Time slot not found");
+  }
+
+  // Determine order status based on completion time and time slot
+  const orderStatus =
+    status === "completed"
+      ? determineDeliveryTiming(timeSlotDetails)
+      : "not_delivered";
+
+  // Create order history record
+  await prisma.orderHistory.create({
+    data: {
+      delivery_id,
+      customer_id,
+      driver_id,
+      completed_at: new Date(),
+      date,
+      status: orderStatus as "on_time" | "early" | "late" | "not_delivered",
+    },
+  });
+}
+
+function determineDeliveryTiming(timeSlot: {
+  start_time: Date;
+  end_time: Date;
+}): string {
+  const currentTime = new Date().getTime();
+  const startTime = new Date(timeSlot.start_time).getTime();
+  const endTime = new Date(timeSlot.end_time).getTime();
+
+  if (currentTime < startTime) {
+    return "early";
+  } else if (currentTime > endTime) {
+    return "late";
+  } else {
+    return "on_time";
+  }
 }
