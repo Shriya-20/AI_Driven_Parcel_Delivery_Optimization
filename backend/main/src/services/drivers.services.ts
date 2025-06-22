@@ -395,7 +395,12 @@ export async function getDriverRouteDeliveryService(driver_id:string, delivery_i
     return route;
 }
 
-export async function updateDriverLocationService(driver_id:string, location: DriverLocation){
+export async function updateDriverLocationService(driver_id:string, location: {
+  driver_id: string;
+  latitude: number;
+  longitude: number;
+  timestamp?: Date;
+}){
     const updatedLocation: {
       driver_id: string;
       latitude: number;

@@ -186,8 +186,10 @@ export async function getDriverDeliveries(req: Request, res: Response) {
   }
   try {
     console.log("reached here");
+    console.log("Driver ID:", id, "Date:", date);
     const driver = await getDriverByIdService(id);
     if (!driver) {
+      console.error("Driver not found for ID:", id);
       res.status(404).json({
         success: false,
         message: "Driver not found",
@@ -199,11 +201,12 @@ export async function getDriverDeliveries(req: Request, res: Response) {
       await getDriverDeliveriesService(id, date as string);
       // console.log("Driver Delivery Queue:", driverDeliveryQueue);
     if (driverDeliveryQueue.length === 0) {
-      res.status(404).json({
-        success: false,
+      console.error("No assigned deliveries for this driver on this date:", date);
+      res.status(200).json({
+        success: true,
         message: `No assigned deliveries for this driver on this date: ${date}`,
         data: null,
-      });
+      });//if no assigned shd show this message and not 404 and also is success only
       return;
     }
     res.status(200).json({
@@ -257,8 +260,8 @@ export async function getDriverSpecificDelivery(req: Request, res: Response) {
     );
     // console.log("Driver Delivery Queue:", driverDeliveryQueue);
     if (deliveryDetails.length === 0) {
-      res.status(404).json({
-        success: false,
+      res.status(200).json({
+        success: true,
         message: `No assigned deliveries for this driver on this date: ${date}`,
         data: null,
       });
@@ -335,16 +338,19 @@ export async function updateDriverLocation(req: Request, res: Response) {
     return;
   }
   try {
-    const validationResult = driverLocationSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: validationResult.error.errors,
-      });
-      return;
-    }
+    // const validationResult = driverLocationSchema.safeParse(req.body);
+    console.log("Update Driver Location Request Body:", req.body);
+    // if (!validationResult.success) {
+    //   res.status(400).json({
+    //     success: false,
+    //     message: "Validation Error",
+    //     errors: validationResult.error.errors,
+    //   });
+    //   return;
+    // }
+    const {driver_id, latitude,longitude,timestamp} = req.body;
     const driver = await getDriverByIdService(id);
+    console.log("Driver found:", driver);
     if (!driver) {
       res.status(404).json({
         success: false,
@@ -353,7 +359,12 @@ export async function updateDriverLocation(req: Request, res: Response) {
       });
       return;
     }
-    const location: DriverLocation = validationResult.data;
+    const location ={
+      driver_id,
+      latitude,
+      longitude,
+      timestamp: timestamp ? new Date(timestamp) : new Date(),
+    };
     const updatedDriverLocation = await updateDriverLocationService(
       id,
       location
@@ -366,7 +377,8 @@ export async function updateDriverLocation(req: Request, res: Response) {
       });
       return;
     }
-    res.status(200).json({
+    console.log("Updated Driver Location:", updatedDriverLocation);
+    res.status(200).json({  
       success: true,
       message: "Driver location updated successfully",
       data: updatedDriverLocation,
