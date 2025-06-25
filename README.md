@@ -1,4 +1,4 @@
-# Parcel Delivery Optimization using Reinforcement Learning Algorithms
+# Parcel Delivery Optimization 
 
 ## Project Overview
 
