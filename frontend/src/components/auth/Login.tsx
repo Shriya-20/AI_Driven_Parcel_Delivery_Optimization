@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+// import { Checkbox } from "@/components/ui/checkbox";
 // import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -13,7 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  // const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // const { toast } = useToast();
   // const router = useRouter();
@@ -78,7 +78,7 @@ export function Login() {
           />
         </div>
 
-        <div className="flex items-center justify-between">
+        {/* <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Checkbox
               id="remember"
@@ -95,7 +95,7 @@ export function Login() {
           >
             Forgot password?
           </Link>
-        </div>
+        </div> */}
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? "Signing in..." : "Sign in"}
