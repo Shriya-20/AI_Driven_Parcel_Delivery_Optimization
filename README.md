@@ -4,6 +4,10 @@
 
 This project optimizes parcel delivery routes using Reinforcement Learning (RL) Algorithms. The goal is to provide an efficient and realistic solution for managing parcel deliveries, incorporating real-world factors like road networks, traffic conditions, and package characteristics. The system includes an admin dashboard for route optimization and assignment, and a driver interface for managing deliveries.
 
+## Project Layout
+
+![Architecture](./basic_diagram_svg.svg)
+![ER Diagram](./ERdiagram.svg)
 ## Features
 
 ### Admin Dashboard (Frontend)

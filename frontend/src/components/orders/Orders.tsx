@@ -1,16 +1,16 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import {
-  Search,
+  // Search,
   Filter,
-  Download,
+  // Download,
   User,
   MapPin,
   Phone,
   Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrderHistory } from "@/lib/clientSideDataServices";
-import { Customer,DriverWithRelations, OrderData } from "@/lib/types";
+import { Customer, DriverWithRelations, OrderData } from "@/lib/types";
 import CompletedOrders from "./completedOrders";
 import OngoingOrders from "./ongoingOrders";
 import PendingOrders from "./pendingOrders";
@@ -42,12 +42,13 @@ export function Orders() {
   const [totalOngoing, setTotalOngoing] = useState<number>(0);
   const [totalPending, setTotalPending] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  // const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null
   );
-  const [selectedDriver, setSelectedDriver] = useState<DriverWithRelations | null>(null);
+  const [selectedDriver, setSelectedDriver] =
+    useState<DriverWithRelations | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchOrderHistory = useCallback(async () => {
@@ -101,7 +102,7 @@ export function Orders() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative w-64">
+          {/* <div className="relative w-64">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -110,7 +111,7 @@ export function Orders() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
+          </div> */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
@@ -132,10 +133,10 @@ export function Orders() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" disabled={loading}>
+          {/* <Button variant="outline" disabled={loading}>
             <Download className="h-4 w-4 mr-2" />
             Export
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -187,70 +188,70 @@ export function Orders() {
       <div className="space-y-6">
         {/* Ongoing Orders */}
         {(statusFilter === "ongoing" || statusFilter === "all") && (
-        <div className="border rounded-lg bg-white shadow-sm">
-          <div className="border-b px-6 py-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              Ongoing Orders
-              <Badge variant="secondary" className="ml-2">
-                {totalOngoing}
-              </Badge>
-            </h3>
+          <div className="border rounded-lg bg-white shadow-sm">
+            <div className="border-b px-6 py-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                Ongoing Orders
+                <Badge variant="secondary" className="ml-2">
+                  {totalOngoing}
+                </Badge>
+              </h3>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              <OngoingOrders
+                ongoingOrders={ongoingOrders}
+                loading={loading}
+                setSelectedCustomer={setSelectedCustomer}
+                setSelectedDriver={setSelectedDriver}
+              />
+            </div>
           </div>
-          <div className="max-h-96 overflow-y-auto">
-            <OngoingOrders
-              ongoingOrders={ongoingOrders}
-              loading={loading}
-              setSelectedCustomer={setSelectedCustomer}
-              setSelectedDriver={setSelectedDriver}
-            />
-          </div>
-        </div>
         )}
         {/* Pending Orders */}
         {(statusFilter === "pending" || statusFilter === "all") && (
-        <div className="border rounded-lg bg-white shadow-sm">
-          <div className="border-b px-6 py-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
-              Pending Orders
-              <Badge variant="secondary" className="ml-2">
-                {totalPending}
-              </Badge>
-            </h3>
+          <div className="border rounded-lg bg-white shadow-sm">
+            <div className="border-b px-6 py-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                Pending Orders
+                <Badge variant="secondary" className="ml-2">
+                  {totalPending}
+                </Badge>
+              </h3>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              <PendingOrders
+                pendingOrders={pendingOrders}
+                loading={loading}
+                setSelectedCustomer={setSelectedCustomer}
+                setSelectedDriver={setSelectedDriver}
+              />
+            </div>
           </div>
-          <div className="max-h-96 overflow-y-auto">
-            <PendingOrders
-              pendingOrders={pendingOrders}
-              loading={loading}
-              setSelectedCustomer={setSelectedCustomer}
-              setSelectedDriver={setSelectedDriver}
-            />
-          </div>
-        </div>
         )}
         {/* Completed Orders */}
         {(statusFilter === "completed" || statusFilter === "all") && (
-        <div className="border rounded-lg bg-white shadow-sm">
-          <div className="border-b px-6 py-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              Completed Orders
-              <Badge variant="secondary" className="ml-2">
-                {totalCompleted}
-              </Badge>
-            </h3>
+          <div className="border rounded-lg bg-white shadow-sm">
+            <div className="border-b px-6 py-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                Completed Orders
+                <Badge variant="secondary" className="ml-2">
+                  {totalCompleted}
+                </Badge>
+              </h3>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              <CompletedOrders
+                completedOrders={completedOrders}
+                loading={loading}
+                setSelectedCustomer={setSelectedCustomer}
+                setSelectedDriver={setSelectedDriver}
+              />
+            </div>
           </div>
-          <div className="max-h-96 overflow-y-auto">
-            <CompletedOrders
-              completedOrders={completedOrders}
-              loading={loading}
-              setSelectedCustomer={setSelectedCustomer}
-              setSelectedDriver={setSelectedDriver}
-            />
-          </div>
-        </div>
-      )}
+        )}
       </div>
 
       {/* No Orders Message */}

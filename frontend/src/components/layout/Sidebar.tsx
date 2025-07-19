@@ -95,7 +95,7 @@ export function Sidebar() {
             <SidebarLink
               to="/optimize"
               icon={Route}
-              label="Optimize Routes"
+              label="Routes"
               currentPath={pathname}
             />
             <SidebarLink

@@ -14,11 +14,11 @@ export async function getRouteByDriverIdAndDate(
   try {
     console.log(
       "Making API call to:",
-      `${backendURL}/routes/route/${driver_id}/${date}`
+      `${backendURL}/routes/route/admin/${driver_id}/${date}`
     );
 
     const res = await axios.get(
-      `${backendURL}/routes/route/${driver_id}/${date}`,
+      `${backendURL}/routes/route/admin/${driver_id}/${date}`,
       {
         timeout: 10000, // 10 second timeout
         headers: {
@@ -135,10 +135,10 @@ export async function getTomorrowScheduledDeliveries(Date: string) {
   // const formattedDate = tomorrow.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
   //for now we will use today's date
   // const formattedDate = new Date().toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-  // const formattedDate = "2025-05-26";
+  const formattedDate = "2025-05-26";
 
   //!IMP-> we expect to get proper date i.e for assign one day next ka and for customer two days next ka in YYYY-MM-DD format
-  const res = await axios.get(`${backendURL}/delivery?date=${Date}`);
+  const res = await axios.get(`${backendURL}/delivery?date=${formattedDate}`);
   const data: getTomorrowScheduledDeliveriesResponse = res.data;
   if (data.success) {
     return data.data;

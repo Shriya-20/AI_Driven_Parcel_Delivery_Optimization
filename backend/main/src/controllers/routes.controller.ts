@@ -573,7 +573,9 @@ interface RouteDetails {
 //     return;
 //   }
 // }
-export async function getRouteByDriverIdAndDate(req: Request, res: Response) {
+
+//!Old get route by driver ID and date function
+export async function getRouteByDriverIdAndDateAdminPanel(req: Request, res: Response) {
   try {
     const { driver_id, date } = req.params;
     console.log("Driver ID:", driver_id);
@@ -615,7 +617,7 @@ export async function getRouteByDriverIdAndDate(req: Request, res: Response) {
     });
 
     if (routes.length === 0) {
-      res.status(404).json({
+      res.status(200).json({
         success: false,
         message: "No routes found for this driver on the selected date",
         data: null,
@@ -693,6 +695,152 @@ export async function getRouteByDriverIdAndDate(req: Request, res: Response) {
     return;
   } catch (error) {
     console.error("Get Deliveries Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: (error as Error).message,
+    });
+    return;
+  }
+}
+//!new one is this
+export async function getRouteByDriverIdAndDate(req: Request, res: Response) {
+  try {
+    const { driver_id, date } = req.params;
+    console.log("Driver ID:", driver_id);
+    console.log("Date:", date);
+
+    if (!driver_id || !date) {
+      res.status(400).json({
+        success: false,
+        message: "Driver ID and date are required",
+        data: null,
+      });
+      return;
+    }
+
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const routes = await prisma.route.findMany({
+      where: {
+        driver_id: driver_id,
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      include: {
+        driver: true,
+      },
+    });
+
+    if (routes.length === 0) {
+      res.status(200).json({
+        success: false,
+        message: "No routes found for this driver on the selected date",
+        data: null,
+      });
+      return;
+    }
+
+    // Transform each route to match frontend expectations
+    const transformedRoutes = await Promise.all(
+      routes.map(async (route) => {
+        const routeDetails = route.route_details as unknown as RouteDetails;
+
+        // Get all deliveries for this route with their details
+        const deliveryIds = routeDetails.deliveries.map((d) => d.delivery_id);
+        const deliveries = await prisma.delivery.findMany({
+          where: {
+            delivery_id: { in: deliveryIds },
+          },
+          include: {
+            customer: true,
+            time_slot: true,
+          },
+        });
+
+        // Create a map for quick delivery lookup
+        const deliveryMap = new Map(deliveries.map((d) => [d.delivery_id, d]));
+
+        // Transform deliveries to Assignment format
+        const assignments = routeDetails.deliveries
+          .map((routeDelivery) => {
+            const deliveryData = deliveryMap.get(routeDelivery.delivery_id);
+
+            if (!deliveryData) {
+              console.warn(
+                `Delivery ${routeDelivery.delivery_id} not found in database`
+              );
+              return null;
+            }
+
+            return {
+              delivery: {
+                delivery_id: routeDelivery.delivery_id,
+                dropoff_location: deliveryData.dropoff_location,
+                priority: deliveryData.priority || 3, // Default to low priority if not set
+                customer: {
+                  name: deliveryData.customer.first_name + " " + (deliveryData.customer.last_name || ""),
+                  phone: deliveryData.customer.phone_number,
+                  address: deliveryData.customer.address,
+                  latitude: deliveryData.customer.latitude,
+                  longitude: deliveryData.customer.longitude,
+                },
+              },
+              sequence_number: routeDelivery.sequence,
+              estimated_arrival: routeDelivery.estimated_arrival,
+            };
+          })
+          .filter(Boolean); // Remove null entries
+
+        // Transform waypoints to include delivery_id
+        const transformedWaypoints = routeDetails.route_geometry.waypoints.map(
+          (wp, index) => {
+            const correspondingDelivery = routeDetails.deliveries[index];
+            return {
+              lat: wp.lat,
+              lng: wp.lng,
+              address: wp.address || "",
+              delivery_id: correspondingDelivery?.delivery_id,
+            };
+          }
+        );
+
+        return {
+          route_id: route.route_id,
+          driver_id: route.driver_id,
+          route_details: {
+            driver_id: routeDetails.driver_id,
+            driver_name: routeDetails.driver_name,
+            deliveries: routeDetails.deliveries,
+            route_geometry: {
+              waypoints: transformedWaypoints,
+              encoded_polyline: routeDetails.route_geometry.encoded_polyline,
+              total_distance: routeDetails.route_geometry.total_distance,
+              total_duration: routeDetails.route_geometry.total_duration,
+            },
+            total_deliveries: routeDetails.deliveries.length,
+            start_time: routeDetails.start_time,
+            estimated_end_time: routeDetails.estimated_end_time,
+          },
+          Assignment: assignments,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      message: `Routes for driver ${driver_id} on date ${date}`,
+      data: transformedRoutes,
+    });
+    return;
+  } catch (error) {
+    console.error("Get Routes Error:", error);
     res.status(500).json({
       success: false,
       message: "Internal Server Error",

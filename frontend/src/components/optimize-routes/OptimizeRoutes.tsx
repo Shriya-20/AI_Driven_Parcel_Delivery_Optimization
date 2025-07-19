@@ -1084,7 +1084,7 @@ export function OptimizeRoutes() {
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Optimize Routes</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Routes</h1>
           <p className="text-sm text-foreground">
             View the <span className="font-bold">Optimized Routes</span> for
             your drivers (Assign the drivers first).

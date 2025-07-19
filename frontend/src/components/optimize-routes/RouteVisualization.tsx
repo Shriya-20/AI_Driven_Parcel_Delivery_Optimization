@@ -1,14 +1,25 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-// components/RouteVisualization.tsx
+
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Clock, User, Phone } from "lucide-react";
+import {
+  MapPin,
+  Navigation,
+  Clock,
+  User,
+  Phone,
+  Route,
+  RefreshCw,
+  CenterFocus,
+  List,
+  ChevronUp,
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getRouteByDriverIdAndDate } from "@/lib/clientSideDataServices";
 
+// Types
 interface RouteWaypoint {
   lat: number;
   lng: number;
@@ -23,37 +34,49 @@ interface RouteDelivery {
   travel_time_from_previous: number;
 }
 
+interface Customers {
+  name: string;
+  phone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface DeliveryInfo {
+  delivery_id: string;
+  dropoff_location: string;
+  priority: number;
+  customer: Customers;
+}
+
+interface Assignments {
+  delivery: DeliveryInfo;
+  sequence_number: number;
+  estimated_arrival: string;
+}
+
+interface RouteGeometry {
+  waypoints: RouteWaypoint[];
+  encoded_polyline?: string;
+  total_distance: number;
+  total_duration: number;
+}
+
+interface RouteDetails {
+  driver_id: string;
+  driver_name: string;
+  deliveries: RouteDelivery[];
+  route_geometry: RouteGeometry;
+  total_deliveries: number;
+  start_time: string;
+  estimated_end_time: string;
+}
+
 interface RouteData {
   route_id: string;
   driver_id: string;
-  route_details: {
-    driver_id: string;
-    driver_name: string;
-    deliveries: RouteDelivery[];
-    route_geometry: {
-      waypoints: RouteWaypoint[];
-      encoded_polyline?: string;
-      total_distance: number;
-      total_duration: number;
-    };
-    total_deliveries: number;
-    start_time: string;
-    estimated_end_time: string;
-  };
-  Assignment: Array<{
-    delivery: {
-      delivery_id: string;
-      dropoff_location: string;
-      priority: number;
-      customer: {
-        name: string;
-        phone: string;
-        address: string;
-      };
-    };
-    sequence_number: number;
-    estimated_arrival: string;
-  }>;
+  route_details: RouteDetails;
+  Assignment: Assignments[];
 }
 
 interface RouteVisualizationProps {
@@ -79,34 +102,32 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const directionsServiceRef = useRef<any>(null);
   const directionsRendererRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const deliveryStopsRef = useRef<HTMLDivElement>(null);
 
   // Load Google Maps API
-  //   useEffect(() => {
-  //     if (!window.google) {
-  //       const script = document.createElement("script");
-  //       script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry`;
-  //       script.async = true;
-  //       script.defer = true;
-  //       script.onload = () => {
-  //         setMapLoaded(true);
-  //         initializeMap();
-  //       };
-  //       document.head.appendChild(script);
-  //     } else {
-  //       setMapLoaded(true);
-  //       initializeMap();
-  //     }
-  //   }, []);
   useEffect(() => {
     console.log("Google Maps useEffect triggered");
+
+    if (typeof window === "undefined") return;
+
     if (!window.google) {
       const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry`;
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+      if (!apiKey) {
+        setMapError("Google Maps API key is not configured");
+        return;
+      }
+
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
       script.async = true;
       script.defer = true;
       script.onload = () => {
@@ -116,6 +137,7 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
       };
       script.onerror = (error) => {
         console.error("Failed to load Google Maps:", error);
+        setMapError("Failed to load Google Maps. Please check your API key.");
       };
       document.head.appendChild(script);
     } else {
@@ -123,7 +145,7 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
       setMapLoaded(true);
       initializeMap();
     }
-  }, []); // Empty dependency array - should only run once
+  }, []);
 
   // Fetch routes when component mounts or dependencies change
   useEffect(() => {
@@ -140,26 +162,39 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
   }, [selectedRoute, mapLoaded]);
 
   const initializeMap = () => {
-    if (mapRef.current && window.google) {
-      mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
-        zoom: 12,
-        center: { lat: 13.3479, lng: 74.7824 }, // Default to Manipal coordinates
-        mapTypeId: window.google.maps.MapTypeId.ROADMAP,
-      });
+    if (mapRef.current && window.google && !mapInstanceRef.current) {
+      try {
+        mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
+          zoom: 12,
+          center: { lat: 13.3479, lng: 74.7824 }, // Default to Manipal coordinates
+          mapTypeId: window.google.maps.MapTypeId.ROADMAP,
+          styles: [
+            {
+              featureType: "poi",
+              elementType: "labels",
+              stylers: [{ visibility: "off" }],
+            },
+          ],
+        });
 
-      directionsServiceRef.current = new window.google.maps.DirectionsService();
-      directionsRendererRef.current = new window.google.maps.DirectionsRenderer(
-        {
-          suppressMarkers: false,
-          polylineOptions: {
-            strokeColor: "#4285f4",
-            strokeWeight: 4,
-            strokeOpacity: 0.8,
-          },
-        }
-      );
+        directionsServiceRef.current =
+          new window.google.maps.DirectionsService();
+        directionsRendererRef.current =
+          new window.google.maps.DirectionsRenderer({
+            suppressMarkers: true, // We'll add custom markers
+            polylineOptions: {
+              strokeColor: "#4285f4",
+              strokeWeight: 4,
+              strokeOpacity: 0.8,
+            },
+          });
 
-      directionsRendererRef.current.setMap(mapInstanceRef.current);
+        directionsRendererRef.current.setMap(mapInstanceRef.current);
+        console.log("Map initialized successfully");
+      } catch (error) {
+        console.error("Error initializing map:", error);
+        setMapError("Failed to initialize map");
+      }
     }
   };
 
@@ -168,59 +203,99 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
       console.log("Already fetching, skipping...");
       return;
     }
+
     setIsLoading(true);
     setIsFetching(true);
+    setError(null);
+
     try {
       const response = await getRouteByDriverIdAndDate(driverId, date);
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error("Failed to assign deliveries");
+      console.log("Fetched routes response:", response);
+
+      if (!response) {
+        setRoutes([]);
+        setSelectedRoute(null);
+        return;
       }
 
-      //   const data = await response.data;
-      //   setRoutes(data.routes);
-      // Fix: response.data contains the API response with success, message, data
-      const apiResponse = response.data;
+      // Handle the response structure correctly
+      let routesData: RouteData[] = [];
 
-      // The actual routes are in apiResponse.data
-      const routesData = apiResponse.data || [];
+      if (Array.isArray(response)) {
+        routesData = response;
+      } else if (response.data) {
+        if (Array.isArray(response.data)) {
+          routesData = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          routesData = response.data.data;
+        }
+      }
 
-      console.log("API Response:", apiResponse); // Debug log
-      console.log("Routes Data:", routesData); // Debug log
+      console.log("Processed routes data:", routesData);
+      setRoutes(routesData);
 
       if (routesData.length > 0) {
         setSelectedRoute(routesData[0]);
+        onRouteSelect?.(routesData[0].route_id);
+      } else {
+        setSelectedRoute(null);
       }
     } catch (error) {
       console.error("Error fetching routes:", error);
+      setError("Failed to fetch routes. Please try again.");
+      setRoutes([]);
+      setSelectedRoute(null);
     } finally {
       setIsLoading(false);
       setIsFetching(false);
     }
   };
 
+  const clearMarkers = () => {
+    markersRef.current.forEach((marker) => marker.setMap(null));
+    markersRef.current = [];
+  };
+
   const renderRoute = (route: RouteData) => {
-    if (
-      !directionsServiceRef.current ||
-      !directionsRendererRef.current ||
-      !route.route_details.route_geometry.waypoints.length
-    ) {
+    if (!directionsServiceRef.current || !directionsRendererRef.current) {
+      console.warn("Directions service not initialized");
+      // Fallback: just add markers
+      addDeliveryMarkers(route);
       return;
     }
 
-    const waypoints = route.route_details.route_geometry.waypoints;
+    // Clear existing markers
+    clearMarkers();
 
-    if (waypoints.length < 2) {
-      console.warn("Not enough waypoints to render route");
+    // Use Assignment data for markers since it has customer coordinates
+    if (route.Assignment.length === 0) {
+      console.warn("No assignments found for route");
       return;
     }
 
-    // First waypoint is origin (driver start location)
-    const origin = waypoints[0];
-    // Last waypoint is destination
-    const destination = waypoints[waypoints.length - 1];
-    // Middle waypoints are delivery stops
-    const waypointsForDirections = waypoints.slice(1, -1).map((wp) => ({
-      location: new window.google.maps.LatLng(wp.lat, wp.lng),
+    // Sort assignments by sequence number
+    const sortedAssignments = route.Assignment.sort(
+      (a, b) => a.sequence_number - b.sequence_number
+    );
+
+    // Create waypoints for directions API from customer coordinates
+    const origin = {
+      lat: sortedAssignments[0].delivery.customer.latitude,
+      lng: sortedAssignments[0].delivery.customer.longitude,
+    };
+
+    const destination = {
+      lat: sortedAssignments[sortedAssignments.length - 1].delivery.customer
+        .latitude,
+      lng: sortedAssignments[sortedAssignments.length - 1].delivery.customer
+        .longitude,
+    };
+
+    const waypoints = sortedAssignments.slice(1, -1).map((assignment) => ({
+      location: new window.google.maps.LatLng(
+        assignment.delivery.customer.latitude,
+        assignment.delivery.customer.longitude
+      ),
       stopover: true,
     }));
 
@@ -230,7 +305,7 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
         destination.lat,
         destination.lng
       ),
-      waypoints: waypointsForDirections,
+      waypoints: waypoints,
       optimizeWaypoints: false, // We already have optimized order
       travelMode: window.google.maps.TravelMode.DRIVING,
       unitSystem: window.google.maps.UnitSystem.METRIC,
@@ -239,9 +314,19 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
     directionsServiceRef.current.route(request, (result: any, status: any) => {
       if (status === window.google.maps.DirectionsStatus.OK) {
         directionsRendererRef.current.setDirections(result);
-
-        // Add custom markers for delivery stops
         addDeliveryMarkers(route);
+
+        // Fit map to show all points
+        const bounds = new window.google.maps.LatLngBounds();
+        sortedAssignments.forEach((assignment) => {
+          bounds.extend(
+            new window.google.maps.LatLng(
+              assignment.delivery.customer.latitude,
+              assignment.delivery.customer.longitude
+            )
+          );
+        });
+        mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
       } else {
         console.error("Directions request failed:", status);
         // Fallback: show markers without route
@@ -251,70 +336,74 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
   };
 
   const addDeliveryMarkers = (route: RouteData) => {
-    // Clear existing markers (if any)
-    // Add markers for each delivery stop
-    route.Assignment.forEach((assignment, index) => {
-      const waypoint = route.route_details.route_geometry.waypoints.find(
-        (wp) => wp.delivery_id === assignment.delivery.delivery_id
-      );
+    // Clear existing markers first
+    clearMarkers();
 
-      if (waypoint) {
-        const marker = new window.google.maps.Marker({
-          position: { lat: waypoint.lat, lng: waypoint.lng },
-          map: mapInstanceRef.current,
-          title: `${assignment.sequence_number}. ${assignment.delivery.customer.name}`,
-          label: {
-            text: assignment.sequence_number.toString(),
-            color: "white",
-            fontWeight: "bold",
-          },
-          icon: {
-            path: window.google.maps.SymbolPath.CIRCLE,
-            scale: 20,
-            fillColor: getPriorityColor(assignment.delivery.priority),
-            fillOpacity: 1,
-            strokeColor: "white",
-            strokeWeight: 2,
-          },
-        });
+    const sortedAssignments = route.Assignment.sort(
+      (a, b) => a.sequence_number - b.sequence_number
+    );
 
-        // Add info window
-        const infoWindow = new window.google.maps.InfoWindow({
-          content: `
-            <div style="padding: 8px; min-width: 200px;">
-              <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold;">
-                Stop ${assignment.sequence_number}: ${
-            assignment.delivery.customer.name
-          }
-              </h3>
-              <p style="margin: 4px 0; font-size: 12px;">
-                <strong>Address:</strong> ${
-                  assignment.delivery.dropoff_location
-                }
-              </p>
-              <p style="margin: 4px 0; font-size: 12px;">
-                <strong>Phone:</strong> ${assignment.delivery.customer.phone}
-              </p>
-              <p style="margin: 4px 0; font-size: 12px;">
-                <strong>ETA:</strong> ${new Date(
-                  assignment.estimated_arrival
-                ).toLocaleTimeString()}
-              </p>
-              <p style="margin: 4px 0; font-size: 12px;">
-                <strong>Priority:</strong> ${assignment.delivery.priority}
-              </p>
-            </div>
-          `,
-        });
+    sortedAssignments.forEach((assignment) => {
+      const marker = new window.google.maps.Marker({
+        position: {
+          lat: assignment.delivery.customer.latitude,
+          lng: assignment.delivery.customer.longitude,
+        },
+        map: mapInstanceRef.current,
+        title: `${assignment.sequence_number}. ${assignment.delivery.customer.name}`,
+        label: {
+          text: assignment.sequence_number.toString(),
+          color: "white",
+          fontWeight: "bold",
+          fontSize: "12px",
+        },
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 20,
+          fillColor: getPriorityColor(assignment.delivery.priority),
+          fillOpacity: 1,
+          strokeColor: "white",
+          strokeWeight: 2,
+        },
+      });
 
-        marker.addListener("click", () => {
-          infoWindow.open(mapInstanceRef.current, marker);
-        });
-      }
+      // Add to markers array for cleanup
+      markersRef.current.push(marker);
+
+      // Add info window
+      const infoWindow = new window.google.maps.InfoWindow({
+        content: `
+          <div style="padding: 8px; min-width: 200px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold;">
+              Stop ${assignment.sequence_number}: ${
+          assignment.delivery.customer.name
+        }
+            </h3>
+            <p style="margin: 4px 0; font-size: 12px;">
+              <strong>Address:</strong> ${assignment.delivery.dropoff_location}
+            </p>
+            <p style="margin: 4px 0; font-size: 12px;">
+              <strong>Phone:</strong> ${assignment.delivery.customer.phone}
+            </p>
+            <p style="margin: 4px 0; font-size: 12px;">
+              <strong>ETA:</strong> ${formatTime(assignment.estimated_arrival)}
+            </p>
+            <p style="margin: 4px 0; font-size: 12px;">
+              <strong>Priority:</strong> ${getPriorityText(
+                assignment.delivery.priority
+              )}
+            </p>
+          </div>
+        `,
+      });
+
+      marker.addListener("click", () => {
+        infoWindow.open(mapInstanceRef.current, marker);
+      });
     });
   };
 
-  const getPriorityColor = (priority: number) => {
+  const getPriorityColor = (priority: number): string => {
     switch (priority) {
       case 1:
         return "#ef4444"; // red for high priority
@@ -327,33 +416,150 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
     }
   };
 
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
+  const getPriorityText = (priority: number): string => {
+    switch (priority) {
+      case 1:
+        return "High";
+      case 2:
+        return "Medium";
+      case 3:
+        return "Low";
+      default:
+        return "Normal";
+    }
+  };
+
+  const getPriorityVariant = (priority: number) => {
+    switch (priority) {
+      case 1:
+        return "destructive";
+      case 2:
+        return "default";
+      case 3:
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  const formatDuration = (duration: number): string => {
+    // Handle both seconds and minutes
+    const totalMinutes = duration > 1000 ? Math.floor(duration / 60) : duration;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours === 0) {
+      return `${minutes}m`;
+    }
     return `${hours}h ${minutes}m`;
   };
 
-  const formatDistance = (meters: number) => {
+  const calculateDuration = (startTime: string, endTime: string): string => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diffInMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+
+    const hours = Math.floor(diffInMinutes / 60);
+    const minutes = Math.round(diffInMinutes % 60);
+
+    return hours === 0 ? `${minutes}m` : `${hours}h ${minutes}m`;
+  };
+
+  const formatDistance = (meters: number): string => {
     const km = meters / 1000;
     return `${km.toFixed(1)} km`;
+  };
+
+  const formatTime = (timeString: string): string => {
+    return new Date(timeString).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const scrollToDeliveryStops = () => {
+    if (deliveryStopsRef.current) {
+      deliveryStopsRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
+
+  const centerMapOnRoute = () => {
+    if (selectedRoute && mapInstanceRef.current) {
+      const bounds = new window.google.maps.LatLngBounds();
+      selectedRoute.Assignment.forEach((assignment) => {
+        bounds.extend(
+          new window.google.maps.LatLng(
+            assignment.delivery.customer.latitude,
+            assignment.delivery.customer.longitude
+          )
+        );
+      });
+      mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
+    }
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2">Loading routes...</span>
+        <div className="flex flex-col items-center space-y-4">
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="text-lg text-gray-600">Loading routes...</span>
+        </div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert className="mx-4">
+        <AlertDescription>
+          {error}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchRoutes}
+            className="ml-4"
+            disabled={isFetching}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header with Refresh Button */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">
+          Route Visualization
+        </h1>
+        <Button
+          onClick={fetchRoutes}
+          disabled={isFetching}
+          size="sm"
+          variant="outline"
+        >
+          <RefreshCw
+            className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`}
+          />
+          Refresh
+        </Button>
+      </div>
+
       {/* Route Selection */}
       {routes.length > 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Available Routes</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Route className="w-5 h-5" />
+              Available Routes ({routes.length})
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex gap-2 flex-wrap">
@@ -389,10 +595,20 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
               <CardTitle className="flex items-center gap-2">
                 <Navigation className="w-5 h-5" />
                 Route Overview
+                <div className="flex items-center ml-auto space-x-2">
+                  <Button
+                    onClick={scrollToDeliveryStops}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <List className="w-4 h-4 mr-1" />
+                    Stops
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Driver:</span>
                   <span className="font-medium">
@@ -407,7 +623,7 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Distance:</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-blue-600">
                     {formatDistance(
                       selectedRoute.route_details.route_geometry.total_distance
                     )}
@@ -415,26 +631,26 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Duration:</span>
-                  <span className="font-medium">
-                    {formatDuration(
-                      selectedRoute.route_details.route_geometry.total_duration
+                  <span className="font-medium text-green-600">
+                    {calculateDuration(
+                      selectedRoute.route_details.start_time,
+                      selectedRoute.route_details.estimated_end_time
                     )}
                   </span>
                 </div>
+              </div>
+
+              <div className="pt-3 border-t border-gray-200 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Start Time:</span>
                   <span className="font-medium">
-                    {new Date(
-                      selectedRoute.route_details.start_time
-                    ).toLocaleTimeString()}
+                    {formatTime(selectedRoute.route_details.start_time)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Est. End:</span>
                   <span className="font-medium">
-                    {new Date(
-                      selectedRoute.route_details.estimated_end_time
-                    ).toLocaleTimeString()}
+                    {formatTime(selectedRoute.route_details.estimated_end_time)}
                   </span>
                 </div>
               </div>
@@ -444,14 +660,40 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
           {/* Map */}
           <Card className="xl:col-span-2">
             <CardHeader>
-              <CardTitle>Route Map</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Route Map
+                </span>
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={centerMapOnRoute}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <CenterFocus className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    onClick={scrollToDeliveryStops}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div
-                ref={mapRef}
-                className="w-full h-96 rounded-lg border"
-                style={{ minHeight: "400px" }}
-              />
+              {mapError ? (
+                <Alert>
+                  <AlertDescription>{mapError}</AlertDescription>
+                </Alert>
+              ) : (
+                <div
+                  ref={mapRef}
+                  className="w-full h-[500px] rounded-lg border bg-gray-100"
+                />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -459,22 +701,34 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
 
       {/* Delivery Stops List */}
       {selectedRoute && (
-        <Card>
+        <Card ref={deliveryStopsRef}>
           <CardHeader>
-            <CardTitle>Delivery Stops</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <List className="w-5 h-5" />
+                Delivery Stops ({selectedRoute.Assignment.length})
+              </span>
+              <Button
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                size="sm"
+                variant="outline"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </Button>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
               {selectedRoute.Assignment.sort(
                 (a, b) => a.sequence_number - b.sequence_number
-              ).map((assignment, index) => (
+              ).map((assignment) => (
                 <div
                   key={assignment.delivery.delivery_id}
-                  className="flex items-center gap-4 p-3 border rounded-lg hover:bg-gray-50"
+                  className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex-shrink-0">
                     <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm"
                       style={{
                         backgroundColor: getPriorityColor(
                           assignment.delivery.priority
@@ -485,22 +739,22 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-500" />
-                      <span className="font-medium">
-                        {assignment.delivery.customer.name}
-                      </span>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <span className="font-semibold text-gray-900">
+                          {assignment.delivery.customer.name}
+                        </span>
+                      </div>
                       <Badge
                         variant={
-                          assignment.delivery.priority === 1
-                            ? "destructive"
-                            : assignment.delivery.priority === 2
-                            ? "default"
-                            : "secondary"
+                          getPriorityVariant(
+                            assignment.delivery.priority
+                          ) as any
                         }
                       >
-                        Priority {assignment.delivery.priority}
+                        {getPriorityText(assignment.delivery.priority)}
                       </Badge>
                     </div>
 
@@ -509,7 +763,7 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
                       <span>{assignment.delivery.dropoff_location}</span>
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center justify-between text-sm text-gray-600">
                       <div className="flex items-center gap-1">
                         <Phone className="w-4 h-4" />
                         <span>{assignment.delivery.customer.phone}</span>
@@ -517,10 +771,7 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
                         <span>
-                          ETA:{" "}
-                          {new Date(
-                            assignment.estimated_arrival
-                          ).toLocaleTimeString()}
+                          ETA: {formatTime(assignment.estimated_arrival)}
                         </span>
                       </div>
                     </div>
@@ -532,13 +783,21 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
         </Card>
       )}
 
+      {/* No Routes Found */}
       {routes.length === 0 && !isLoading && (
         <Card>
-          <CardContent className="text-center py-8">
-            <Navigation className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">
+          <CardContent className="text-center py-12">
+            <Route className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No routes found
+            </h3>
+            <p className="text-gray-600 mb-4">
               No routes found for this driver on {date}
             </p>
+            <Button onClick={fetchRoutes} disabled={isFetching}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
           </CardContent>
         </Card>
       )}

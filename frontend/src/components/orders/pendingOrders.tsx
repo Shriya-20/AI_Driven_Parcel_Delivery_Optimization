@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
-import { User, Car, Eye } from "lucide-react";
+import { User, Car } from "lucide-react";
 import React from "react";
-import { Button } from "../ui/button";
+// import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import {
   Table,
@@ -40,7 +40,7 @@ const PendingOrders = ({
           <TableHead>Status</TableHead>
           <TableHead>Delivery Date</TableHead>
           <TableHead>Duration</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          {/* <TableHead className="text-right">Actions</TableHead> */}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -101,11 +101,11 @@ const PendingOrders = ({
                   ? `${order.delivery_duration} mins`
                   : "N/A"}
               </TableCell>
-              <TableCell className="text-right">
+              {/* <TableCell className="text-right">
                 <Button variant="ghost" size="icon">
                   <Eye className="h-4 w-4" />
                 </Button>
-              </TableCell>
+              </TableCell> */}
             </TableRow>
           ))
         ) : (

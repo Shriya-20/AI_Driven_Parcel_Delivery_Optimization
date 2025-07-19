@@ -111,8 +111,8 @@ export function Carriers() {
       <Tabs defaultValue="all">
         <TabsList>
           <TabsTrigger value="all">All Drivers</TabsTrigger>
-          <TabsTrigger value="available">Available</TabsTrigger>
-          <TabsTrigger value="busy">Busy</TabsTrigger>
+          {/* <TabsTrigger value="available">Available</TabsTrigger>
+          <TabsTrigger value="busy">Busy</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
