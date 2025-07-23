@@ -273,10 +273,12 @@ import { DeliveryQueueForDriver } from "@/types";
 import { DashboardDataFetcher } from "@/Lib/fetchDataServices";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
+// import { startBackgroundLocationTracking } from "@/Lib/location/StartTracking";
+// import DebugLocationComponent from "@/Lib/location/DebugLocation";
 // import { useRouter } from "expo-router";
 const DashboardScreen = () => {
-  const { driver, token} = useAuth();
-  const [isAvailable, setIsAvailable] = useState(true);
+  const { driver } = useAuth();
+  // const [isAvailable, setIsAvailable] = useState(true);
   const [deliveryQueue, setDeliveryQueue] = useState<DeliveryQueueForDriver[]>(
     []
   );
@@ -287,10 +289,14 @@ const DashboardScreen = () => {
       setError(null);
       setIsLoading(true);
 
-      const mockDriverId = "69ca617c-9259-492f-a73a-e9e351204678";
+      // const mockDriverId = "69ca617c-9259-492f-a73a-e9e351204678";
       const mockDate = "2025-05-27";
+      //to get based on actual driver and todays date
+      const mockDriverId =
+        driver?.driver_id || "69ca617c-9259-492f-a73a-e9e351204678";
+      // const mockDate = new Date().toISOString().split("T")[0];// !imp for now using the mock date else this only shd be used
       const queue = await DashboardDataFetcher(mockDriverId, mockDate);
-
+      // console.log(queue);
       setDeliveryQueue(queue);
 
       Toast.show({
@@ -317,25 +323,37 @@ const DashboardScreen = () => {
     }
   }, []);
 
-  const handleAvailabilityToggle = (value: boolean) => {
-    setIsAvailable(value);
-    Toast.show({
-      type: value ? "success" : "info",
-      text1: value ? "Available" : "Unavailable",
-      text2: `You are now ${
-        value ? "available" : "unavailable"
-      } for deliveries`,
-      position: "top",
-    });
-  };
+  // const handleAvailabilityToggle = (value: boolean) => {
+  //   setIsAvailable(value);
+  //   Toast.show({
+  //     type: value ? "success" : "info",
+  //     text1: value ? "Available" : "Unavailable",
+  //     text2: `You are now ${
+  //       value ? "available" : "unavailable"
+  //     } for deliveries`,
+  //     position: "top",
+  //   });
+  // };
 
   const handleRefresh = () => fetchDeliveryQueue(true);
 
   useEffect(() => {
     fetchDeliveryQueue(false);
   }, [fetchDeliveryQueue]);
+    // To start the background location tracking (not tested for now but should work)
+    // useEffect(() => {
+    //   const initializeLocationTracking = async () => {
+    //     try {
+    //       await startBackgroundLocationTracking();
+    //       console.log("Background location tracking started");
+    //     } catch (error) {
+    //       console.error("Failed to start location tracking:", error);
+    //     }
+    //   };
+    //   initializeLocationTracking();
+    // }, []);
 
-  if (isLoading ) {
+  if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <View className="flex-1 items-center justify-center">
@@ -345,7 +363,6 @@ const DashboardScreen = () => {
       </SafeAreaView>
     );
   }
-  
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -359,11 +376,14 @@ const DashboardScreen = () => {
           <View className="flex-1">
             <Text className="text-2xl font-bold text-gray-900">Dashboard</Text>
             <Text className="text-black mt-1">
-              Welcome back, {deliveryQueue[0]?.driver.first_name + " " + deliveryQueue[0]?.driver.last_name || "Driver"}
+              Welcome back,{" "}
+              {deliveryQueue[0]?.driver.first_name +
+                " " +
+                deliveryQueue[0]?.driver.last_name || "Driver"}
             </Text>
           </View>
-
-          <View className="flex-row items-center ml-4">
+          {/* <DebugLocationComponent/> */}
+          {/* <View className="flex-row items-center ml-4">
             <Switch
               value={isAvailable}
               onValueChange={handleAvailabilityToggle}
@@ -377,7 +397,7 @@ const DashboardScreen = () => {
             >
               {isAvailable ? "Available" : "Unavailable"}
             </Text>
-          </View>
+          </View> */}
         </View>
 
         {/* Error */}
@@ -412,7 +432,7 @@ const DashboardScreen = () => {
         <WeatherAlert />
 
         {/* Daily Summary */}
-        <View className="bg-gray-900 p-4 rounded-lg">
+        {/* <View className="bg-gray-900 p-4 rounded-lg">
           <Text className="text-xl text-white text-center font-bold mb-4">
             Daily Summary
           </Text>
@@ -431,7 +451,7 @@ const DashboardScreen = () => {
               <SummaryCard icon="trending-up" label="On-time" value="98%" />
             </View>
           </View>
-        </View>
+        </View> */}
       </ScrollView>
     </SafeAreaView>
   );

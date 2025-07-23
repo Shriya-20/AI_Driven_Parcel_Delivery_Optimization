@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<gpx version="1.1" creator="test">
+  <trk>
+    <name>Udupi Region Test Route</name>
+    <trkseg>
+      <!-- Udupi Bus Stand -->
+      <trkpt lat="13.340881" lon="74.742142">
+        <name>Udupi Bus Stand</name>
+      </trkpt>
+      
+      <!-- Udupi City Center -->
+      <trkpt lat="13.341200" lon="74.743000">
+        <name>Udupi City</name>
+      </trkpt>
+      
+      <!-- Manipal -->
+      <trkpt lat="13.3605015" lon="74.7863698">
+        <name>Manipal</name>
+      </trkpt>
+      
+      <!-- Manipal University Area -->
+      <trkpt lat="13.3525000" lon="74.7880000">
+        <name>Manipal University</name>
+      </trkpt>
+      
+      <!-- Parkala (between Manipal and Hebri) -->
+      <trkpt lat="13.400000" lon="74.850000">
+        <name>Parkala</name>
+      </trkpt>
+      
+      <!-- Towards Hebri -->
+      <trkpt lat="13.430000" lon="74.920000">
+        <name>En route to Hebri</name>
+      </trkpt>
+      
+      <!-- Hebri -->
+      <trkpt lat="13.458760" lon="74.992470">
+        <name>Hebri</name>
+      </trkpt>
+      
+      <!-- Towards Agumbe -->
+      <trkpt lat="13.500000" lon="75.050000">
+        <name>En route to Agumbe</name>
+      </trkpt>
+      
+      <!-- Agumbe area (Western Ghats) -->
+      <trkpt lat="13.520000" lon="75.080000">
+        <name>Agumbe Region</name>
+      </trkpt>
+      
+      <!-- Agumbe Peak -->
+      <trkpt lat="13.530000" lon="75.100000">
+        <name>Agumbe Peak</name>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

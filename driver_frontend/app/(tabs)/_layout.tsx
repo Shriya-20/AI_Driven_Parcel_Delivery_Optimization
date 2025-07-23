@@ -6,6 +6,7 @@ import "../globals.css";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect } from "react";
 import { View, ActivityIndicator } from "react-native";
+// import "../../Lib/location/location-task";
 
 export default function TabLayout() {
   const { isAuthenticated, isMainLoading } = useAuth();

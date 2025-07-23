@@ -1,12 +1,12 @@
 import CustomerInfo from "@/components/ui/Active/CustomerInfo";
 import DeliveryInfo from "@/components/ui/Active/DeliveryInfo";
 import DeliveryMap from "@/components/ui/Active/DeliveryMap";
-import { DeliveryDetailsFetcher } from "@/Lib/fetchDataServices";
+import { DeliveryDetailsFetcher, DeliveryStatusChange } from "@/Lib/fetchDataServices";
 import { DeliveryQueueForDriver, DeliveryStatus } from "@/types";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useState, useCallback, useEffect } from "react";
-import { Text, View, ScrollView, ActivityIndicator } from "react-native";
+import { Text, View, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { Button } from "react-native-paper";
 import Toast from "react-native-toast-message";
 
@@ -22,6 +22,7 @@ export default function Active() {
   if (!id) {
     setError("No delivery ID provided");
   }
+  
   const fetchDeliveryDetail = useCallback(
     async (showToast = true) => {
       try {
@@ -87,26 +88,58 @@ export default function Active() {
   useEffect(() => {
     fetchDeliveryDetail(false);
   }, [fetchDeliveryDetail]);
+  const changeDeliveryStatus = async (status: DeliveryStatus) => {
+    try {
+      if (!deliveryDetails?.driver?.driver_id || !deliveryDetails?.delivery_id) {
+        throw new Error("Driver ID or Delivery ID is missing");
+      }
+      await DeliveryStatusChange(
+        deliveryDetails?.driver?.driver_id,
+        deliveryDetails?.delivery_id,
+        status
+      );
+      if (status === DeliveryStatus.completed) {
+        Toast.show({
+          type: "success",
+          text1: "Delivery Completed",
+          text2: "The delivery has been marked as complete",
+          position: "top",
+        });
+      }else if (status === DeliveryStatus.cancelled) {
+        Toast.show({
+          type: "success",
+          text1: "Delivery Cancelled",
+          text2: "The delivery has been marked as cancelled",
+          position: "top",
+        });
+      }
+      setDeliveryStatus(status);
+      fetchDeliveryDetail();
 
-  const handleCompleteDelivery = useCallback(() => {
-    // TODO: Implement delivery completion logic
-    Toast.show({
-      type: "success",
-      text1: "Delivery Completed",
-      text2: "The delivery has been marked as complete",
-      position: "top",
-    });
-  }, []);
+    } catch (error) {
+      console.error("Error updating delivery status:", error);
+      Alert.alert("Error", "Failed to update delivery status");
+    }
+  };
+  // const handleCompleteDelivery = useCallback(() => {
+  //   // TODO: Implement delivery completion logic
+  //   Toast.show({
+  //     type: "success",
+  //     text1: "Delivery Completed",
+  //     text2: "The delivery has been marked as complete",
+  //     position: "top",
+  //   });
+  // }, []);
 
-  const handleCancelDelivery = useCallback(() => {
-    // TODO: Implement delivery cancellation logic
-    Toast.show({
-      type: "success",
-      text1: "Delivery Cancelled",
-      text2: "The delivery has been marked as cancelled",
-      position: "top",
-    });
-  }, []);
+  // const handleCancelDelivery = useCallback(() => {
+  //   // TODO: Implement delivery cancellation logic
+  //   Toast.show({
+  //     type: "success",
+  //     text1: "Delivery Cancelled",
+  //     text2: "The delivery has been marked as cancelled",
+  //     position: "top",
+  //   });
+  // }, []);
 
   // Loading state
   if (isLoading) {
@@ -179,7 +212,11 @@ export default function Active() {
 
       {/* Content */}
       <View className="gap-2 p-2">
-        <DeliveryMap delivery={deliveryDetails} setDeliveryStatus={setDeliveryStatus}/>
+        <DeliveryMap
+          delivery={deliveryDetails}
+          setDeliveryStatus={setDeliveryStatus}
+          deliveryStatus={deliveryStatus}
+        />
         <DeliveryInfo delivery={deliveryDetails} />
         <CustomerInfo customer={deliveryDetails.customer} />
 
@@ -190,7 +227,7 @@ export default function Active() {
           <View className="mx-2 mt-4 mb-6 gap-2">
             <Button
               mode="elevated"
-              onPress={handleCompleteDelivery}
+              onPress={() => changeDeliveryStatus(DeliveryStatus.completed)}
               buttonColor="#10B981"
               contentStyle={{ paddingVertical: 8 }}
               className="rounded-lg"
@@ -205,7 +242,7 @@ export default function Active() {
 
             <Button
               mode="outlined"
-              onPress={handleCancelDelivery}
+              onPress={() => changeDeliveryStatus(DeliveryStatus.cancelled)}
               buttonColor="transparent"
               textColor="#DC2626"
               contentStyle={{ paddingVertical: 8 }}

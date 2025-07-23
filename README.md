@@ -6,11 +6,17 @@ This project optimizes parcel delivery routes using Reinforcement Learning (RL) 
 
 ## Project Layout
 
+- Project Architecture
+
 ![Architecture](./basic_diagram_svg.svg)
+
+- Project ER Diagram
 ![ER Diagram](./ERdiagram.svg)
+
 ## Features
 
 ### Admin Dashboard (Frontend)
+
 *   Assign deliveries to drivers.
 *   Manage carriers (add, view, edit).
 *   Manage customers (add, view, edit).
@@ -73,50 +79,138 @@ This project optimizes parcel delivery routes using Reinforcement Learning (RL) 
 
 ## Technologies Used
 
--   **Backend:** [Specify backend technologies from backend/Readme.md if available, otherwise generalize]
--   **Frontend (Admin):** [Specify frontend technologies if available, otherwise generalize e.g., React, Next.js]
--   **Frontend (Driver):** Expo
--   **Machine Learning:** Python, Reinforcement Learning Libraries (e.g., TensorFlow, PyTorch), Google OR-Tools
--   **Database:** [Specify database if information is available]
--   **APIs:** OpenStreetMap API
+-   **Backend:** Node.js, Express.js, TypeScript, Prisma ORM
+-   **Frontend (Admin):** Next.js, React, TypeScript, Tailwind CSS
+-   **Frontend (Driver):** React Native, Expo
+-   **Database:** PostgreSQL
+-   **Machine Learning:** Python, Reinforcement Learning Libraries (TensorFlow, PyTorch), Google OR-Tools
+-   **APIs:** OpenStreetMap API, Google Maps API, Weather API
+-   **Real-time Communication:** WebSocket (Live location tracking)
+-   **Authentication:** JWT tokens, bcrypt
+-   **Development Tools:** ESLint, Prettier, Android Studio
+-   **Version Control:** Git, GitHub
 
 ## Project Structure
 
-```
+``` bash
 .
-├── backend/                # Main backend API for the application
-├── driver_frontend/        # Expo app for drivers
-├── frontend/               # Frontend for the Admin point of view
-├── models/                 # Contains the different optimization models
-│   ├── deep_q_learning/
-│   └── google_or_tools_ml/
-└── README.md               # This file
+├── .gitignore
+├── README.md
+├── requirements.txt
+├── main.py
+├── basic_diagram_svg.svg
+├── basic_diagram.png
+├── detailed diagram.png
+├── ERdiagram.svg
+├── udupi_delivery_travel_time_data.csv
+├── udupi_travel_time_model_20250528_111806.pkl
+├── .ipynb_checkpoints/
+│   ├── claude-checkpoint.ipynb
+│   └── ds-checkpoint.ipynb
+├── .vscode/
+│   ├── c_cpp_properties.json
+│   ├── launch.json
+│   └── settings.json
+├── backend/
+│   ├── main/                       # Main API server
+│   │   ├── src/
+│   │   │   ├── index.ts
+│   │   │   └── routes/
+│   │   ├── package.json
+│   │   └── prisma/
+│   └── live_location_tracking/     # WebSocket tracking API
+│       ├── package.json
+│       └── src/
+├── cache/
+├── data/
+│   ├── deliveries.csv
+│   └── ...
+├── driver_frontend/                # Expo React Native app for drivers
+│   ├── app/
+│   ├── package.json
+│   └── README.md
+├── frontend/                       # Next.js admin dashboard
+│   ├── public/
+│   │   └── images/
+│   ├── package.json
+│   └── src/
+├── google_or_tools/
+│   ├── requirements.txt
+│   └── multi_vehicl_VRPTW/         # Driver assignment model
+│       └── app.py
+├── notebooks/
+├── RL_gym_environment/
+├── RL_logs/
+├── RL_models/
+├── RL_plots/
+├── scripts/
+└── utils/
 ```
 
-*(Note: This is a simplified overview. More detailed structure can be added as the project evolves.)*
+## Installation and Setup
 
-## Setup and Installation
+### Prerequisites
 
-### Backend
+- Node.js (v16 or higher)
+- Python (v3.8 or higher)
+- Android Studio with Android emulator
+- Expo CLI
+- All the env variables are filled(mainly the google maps api, weather api keys etc.)
 
-(Instructions for setting up the backend will be added here based on `backend/Readme.md` or further information.)
+### 1. Admin Frontend (Next.js)
 
-### Frontend (Admin)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The admin dashboard will be available at `http://localhost:3000`
 
-(Instructions for setting up the admin frontend will be added here based on `frontend/README.md` or further information.)
+### 2. Backend Setup
 
-### Driver Frontend (Expo App)
+#### Main API Server
+```bash
+cd backend/main
+npm install
+npx prisma generate
+npm run dev
+```
+The main API server will start on port `8000`
 
-1.  **Install dependencies:**
-    ```bash
-    cd driver_frontend
-    npm install
-    ```
-2.  **Start the app:**
-    ```bash
-    npx expo start
-    ```
-    This will provide options to open the app in a development build, Android emulator, iOS simulator, or Expo Go.
+#### Live Location Tracking (WebSocket API)
+```bash
+cd backend/live_location_tracking
+npm install
+npm run dev
+```
+The tracking WebSocket API will start on port `4000`
+
+### 3. Driver Assignment Model
+
+```bash
+cd google_or_tools/multi_vehicl_VRPTW
+pip install -r ../requirements.txt
+python app.py
+```
+
+### 4. Driver Mobile App (Expo)
+
+#### Setup Android Emulator
+1. Install Android Studio
+2. Set up an Android Virtual Device (AVD)
+3. Start the emulator
+
+#### Run the App
+```bash
+cd driver_frontend
+npx expo install
+npx expo run:android
+```
+The app will be installed and launched on your Android emulator.
+
+### Testing Credentials
+
+For testing the admin dashboard and mobile app, please contact us at `ckeerthankumar4@gmail.com` to obtain login credentials.
 
 ## Usage
 
@@ -196,10 +290,10 @@ We welcome contributions to improve and expand this project. If you have new fea
 4.  Add relevant tests if applicable.
 5.  Submit a pull request for review.
 
-(More specific contribution guidelines can be added, e.g., coding standards, testing procedures.)
+## Future Improvements
 
-## License
-
-This project is released under the [Specify License - e.g., MIT License]. (To be confirmed and updated)
-
-(If a `LICENSE` file exists, refer to it. Otherwise, a standard license like MIT is common for open-source projects.)
+- **Cloud Deployment:** Deploy on AWS/GCP/Azure with Docker containerization and CI/CD pipelines
+- **Advanced ML Models:** Implement Graph Neural Networks and Multi-Agent RL for better route optimization
+- **Mobile Enhancements:** Add offline mode, AR navigation, and real-time delivery photo verification
+- **IoT Integration:** Real-time package tracking with sensors and predictive maintenance for vehicles
+- **Microservices Architecture:** Break down monolithic services with API gateway and event-driven design
