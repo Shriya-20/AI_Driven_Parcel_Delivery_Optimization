@@ -22,6 +22,9 @@ export function createDeliveryEmailTemplate(
     size: string;
   }
 ): string {
+  // <li>
+  //   <strong>Size:</strong> ${deliveryDetails.size}
+  // </li>;
   return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Hello ${customerName},</h2>
@@ -33,7 +36,7 @@ export function createDeliveryEmailTemplate(
           <li><strong>Dropoff Location:</strong> ${deliveryDetails.dropoff_location}</li>
           <li><strong>Priority:</strong> ${deliveryDetails.priority}</li>
           <li><strong>Weight:</strong> ${deliveryDetails.weight} kg</li>
-          <li><strong>Size:</strong> ${deliveryDetails.size}</li>
+          
         </ul>
   
         <p>To help us serve you better, please select your preferred delivery time slot by clicking the button below:</p>
